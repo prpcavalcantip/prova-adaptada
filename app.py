@@ -1,51 +1,79 @@
-
 import streamlit as st
 import fitz  # PyMuPDF
-import io
-from docx import Document
-from docx.shared import Pt
+import docx
+import re
+from io import BytesIO
 
-# Banco de dicas por neurodivergência
-DICAS = {
-    "TDAH": "🔍 DICA TDAH: Leia a pergunta com atenção. Sublinhe palavras-chave antes de olhar as alternativas.",
-    "TEA": "🧩 DICA TEA: Concentre-se no que está sendo pedido, uma coisa de cada vez. Ignore detalhes desnecessários.",
-    "Ansiedade": "🧘‍♂️ DICA ANSIEDADE: Respire fundo antes de cada questão. Foque apenas na pergunta atual."
+st.set_page_config(page_title="AdaptaProva", layout="centered")
+
+st.title("🧠 AdaptaProva - Provas Adaptadas para Alunos com Neurodivergência")
+st.markdown("Envie uma prova em PDF com texto selecionável e selecione a neurodivergência do aluno para gerar uma versão adaptada.")
+
+# Banco de dicas para cada neurodivergência
+dicas_por_tipo = {
+    "TDAH": [
+        "Destaque palavras-chave da pergunta.",
+        "Leia a pergunta duas vezes antes de escolher a resposta.",
+        "Tente eliminar as alternativas claramente erradas primeiro."
+    ],
+    "TEA": [
+        "Preste atenção nas palavras que indicam ordem, como 'primeiro', 'depois', 'por fim'.",
+        "Leia com calma. Respire fundo antes de cada pergunta.",
+        "Use rascunho para organizar o que entendeu da questão."
+    ],
+    "Ansiedade": [
+        "Lembre-se: você pode fazer uma pergunta de cada vez com calma.",
+        "Respire fundo antes de começar cada questão.",
+        "Você está preparado. Confie no seu raciocínio!"
+    ]
 }
 
-st.title("Adaptador de Provas para Alunos Neurodivergentes")
+# Upload da prova em PDF
+uploaded_file = st.file_uploader("📄 Envie a prova em PDF", type=["pdf"])
 
-# Upload do PDF
-pdf_file = st.file_uploader("Faça o upload da prova em PDF (texto selecionável)", type=["pdf"])
+# Escolha da neurodivergência
+tipo = st.selectbox("🧠 Neurodivergência do aluno:", ["TDAH", "TEA", "Ansiedade"])
 
-# Seleção da neurodivergência
-neuro = st.selectbox("Escolha a neurodivergência do aluno:", ["TDAH", "TEA", "Ansiedade"])
+if uploaded_file and tipo:
+    if st.button("🔄 Gerar Prova Adaptada"):
+        with st.spinner("Processando..."):
 
-if pdf_file and neuro:
-    if st.button("Gerar Prova Adaptada"):
-        text = ""
-        with fitz.open(stream=pdf_file.read(), filetype="pdf") as doc:
+            # Lê o PDF com PyMuPDF
+            doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
+            texto = ""
             for page in doc:
-                text += page.get_text()
+                texto += page.get_text()
 
-        # Separar questões com base em "QUESTÃO"
-        blocos = text.split("QUESTÃO ")
-        blocos = blocos[1:11]  # Pega no máximo 10 questões
+            # Divide o texto por questões (ex: "1 ", "2 ", "3 ") usando regex
+            questoes = re.split(r'\n?\s*(?:\d+)[\.\)\-]?\s+', texto)
+            questoes = [q.strip() for q in questoes if q.strip()]
+            questoes = questoes[:10]  # Limita a 10 questões
 
-        docx = Document()
-        style = docx.styles["Normal"]
-        font = style.font
-        font.size = Pt(14)
+            # Cria o documento Word
+            docx_file = docx.Document()
+            docx_file.add_heading("Prova Adaptada", 0)
 
-        for i, bloco in enumerate(blocos, start=1):
-            paragrafo = docx.add_paragraph()
-            run = paragrafo.add_run(f"QUESTÃO {i} ")
-            run.bold = True
-            paragrafo.add_run(bloco.strip())
+            for i, questao in enumerate(questoes):
+                enunciado = re.sub(r'^\d+\s*[-.)]?\s*', '', questao)  # Remove numeração duplicada
 
-            # Adicionar dica
-            docx.add_paragraph(DICAS[neuro], style="Normal")
+                # Adiciona a questão
+                p = docx_file.add_paragraph()
+                p.add_run(f"QUESTÃO {i+1}\n").bold = True
+                p.add_run(enunciado + "\n")
 
-        buffer = io.BytesIO()
+                # Adiciona dicas
+                docx_file.add_paragraph("💡 Dicas para resolver essa questão:", style='List Bullet')
+                for dica in dicas_por_tipo[tipo]:
+                    docx_file.add_paragraph(dica, style='List Bullet')
+
+            # Salvar em memória
+            buffer = BytesIO()
+            docx_file.save(buffer)
+            buffer.seek(0)
+
+            st.success("Prova adaptada gerada com sucesso!")
+            st.download_button(label="📥 Baixar Prova Adaptada (.docx)", data=buffer, file_name="prova_adaptada.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
         docx.save(buffer)
         buffer.seek(0)
 
