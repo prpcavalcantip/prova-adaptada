@@ -37,63 +37,58 @@ if uploaded_file and tipo:
     if st.button("🔄 Gerar Prova Adaptada"):
         with st.spinner("Processando..."):
 
-            # Lê o PDF
             doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
             texto = ""
             for page in doc:
                 texto += page.get_text()
 
-            # Divide por "QUESTÃO X"
             blocos = re.split(r'\bQUESTÃO\s+\d+', texto)
             blocos = [b.strip() for b in blocos if b.strip()]
             if len(blocos) > 10:
-                blocos = blocos[1:]  # Remove cabeçalho se estiver no primeiro bloco
+                blocos = blocos[1:]
             blocos = blocos[:10]
 
             docx_file = docx.Document()
             docx_file.add_heading("Prova Adaptada", 0)
 
-            # Fonte padrão 14 pt
             style = docx_file.styles["Normal"]
             style.font.size = Pt(14)
 
-            # DICAS iniciais no topo da prova
+            # Dicas iniciais
             docx_file.add_paragraph("💡 DICAS PARA O ALUNO:", style="List Bullet")
             for dica in dicas_por_tipo[tipo]:
                 p = docx_file.add_paragraph(dica, style="List Bullet")
                 p.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
                 p.paragraph_format.line_spacing = 1.5
+                p.paragraph_format.space_after = Pt(12)
             docx_file.add_paragraph("")
 
-            # Adiciona as questões
             for i, bloco in enumerate(blocos):
-                # Título da questão
                 titulo = docx_file.add_paragraph()
                 run = titulo.add_run(f"QUESTÃO {i+1}")
                 run.bold = True
                 titulo.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+                titulo.paragraph_format.space_after = Pt(12)
 
-                # Enunciado
                 enunciado = docx_file.add_paragraph(bloco)
                 enunciado.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+                enunciado.paragraph_format.line_spacing = 1.5
+                enunciado.paragraph_format.space_after = Pt(12)
                 for run in enunciado.runs:
                     run.font.size = Pt(14)
 
-                # Espaço duplo após o enunciado
-                docx_file.add_paragraph("")
+                # Espaço duplo visual (adicional entre enunciado e alternativas)
                 docx_file.add_paragraph("")
 
-                # Dicas da questão
                 docx_file.add_paragraph("💡 Dicas para essa questão:", style="List Bullet")
                 for dica in dicas_por_tipo[tipo]:
                     dica_par = docx_file.add_paragraph(dica, style="List Bullet")
                     dica_par.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
                     dica_par.paragraph_format.line_spacing = 1.5
+                    dica_par.paragraph_format.space_after = Pt(12)
 
-                # Espaço final
                 docx_file.add_paragraph("")
 
-            # Salva o documento em memória
             buffer = BytesIO()
             docx_file.save(buffer)
             buffer.seek(0)
@@ -104,4 +99,6 @@ if uploaded_file and tipo:
                 data=buffer,
                 file_name="prova_adaptada.docx",
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )
+
             )
