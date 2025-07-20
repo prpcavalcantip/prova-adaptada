@@ -3,6 +3,8 @@ import fitz  # PyMuPDF
 import docx
 import re
 from io import BytesIO
+from docx.shared import Pt
+from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 
 st.set_page_config(page_title="AdaptaProva", layout="centered")
 
@@ -44,27 +46,48 @@ if uploaded_file and tipo:
             for page in doc:
                 texto += page.get_text()
 
-            # Divide o texto por questões (ex: "1 ", "2 ", "3 ") usando regex
-            questoes = re.split(r'\n?\s*(?:\d+)[\.\)\-]?\s+', texto)
-            questoes = [q.strip() for q in questoes if q.strip()]
-            questoes = questoes[:10]  # Limita a 10 questões
+            # Divide o texto por "QUESTÃO" usando regex
+            blocos = re.split(r'\bQUESTÃO\s+\d+', texto)
+            blocos = [b.strip() for b in blocos if b.strip()]
+
+            # Remove o cabeçalho se ele aparecer antes da primeira questão real
+            if len(blocos) > 10:
+                blocos = blocos[1:]  # Remove o bloco inicial com cabeçalho
+
+            blocos = blocos[:10]  # Pega até 10 questões
 
             # Cria o documento Word
             docx_file = docx.Document()
             docx_file.add_heading("Prova Adaptada", 0)
 
-            for i, questao in enumerate(questoes):
-                enunciado = re.sub(r'^\d+\s*[-.)]?\s*', '', questao)  # Remove numeração duplicada
+            # Fonte base
+            style = docx_file.styles["Normal"]
+            style.font.size = Pt(14)
 
-                # Adiciona a questão
-                p = docx_file.add_paragraph()
-                p.add_run(f"QUESTÃO {i+1}\n").bold = True
-                p.add_run(enunciado + "\n")
+            for i, bloco in enumerate(blocos):
+                # Adiciona número da questão
+                par = docx_file.add_paragraph()
+                run = par.add_run(f"QUESTÃO {i+1}\n")
+                run.bold = True
+                par.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
 
-                # Adiciona dicas
-                docx_file.add_paragraph("💡 Dicas para resolver essa questão:", style='List Bullet')
+                # Texto da questão
+                questao_par = docx_file.add_paragraph(bloco.strip())
+                questao_par.alignment = WD_PARAGRAPH_ALIGNMENT.JUSTIFY
+                for run in questao_par.runs:
+                    run.font.size = Pt(14)
+
+                # Espaço entre questão e dicas
+                docx_file.add_paragraph("")
+
+                # Dicas
+                docx_file.add_paragraph("💡 Dicas para essa questão:", style="List Bullet")
                 for dica in dicas_por_tipo[tipo]:
-                    docx_file.add_paragraph(dica, style='List Bullet')
+                    p = docx_file.add_paragraph(dica, style="List Bullet")
+                    p.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+
+                # Espaço antes da próxima questão
+                docx_file.add_paragraph("")
 
             # Salvar em memória
             buffer = BytesIO()
@@ -72,10 +95,10 @@ if uploaded_file and tipo:
             buffer.seek(0)
 
             st.success("Prova adaptada gerada com sucesso!")
-            st.download_button(label="📥 Baixar Prova Adaptada (.docx)", data=buffer, file_name="prova_adaptada.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+            st.download_button(
+                label="📥 Baixar Prova Adaptada (.docx)",
+                data=buffer,
+                file_name="prova_adaptada.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )
 
-        docx.save(buffer)
-        buffer.seek(0)
-
-        st.success("Prova adaptada gerada com sucesso!")
-        st.download_button("📄 Baixar Prova Adaptada (DOCX)", buffer, file_name="prova_adaptada.docx")
