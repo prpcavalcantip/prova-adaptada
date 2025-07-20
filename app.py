@@ -30,75 +30,81 @@ dicas_por_tipo = {
     ]
 }
 
-# Upload da prova em PDF
 uploaded_file = st.file_uploader("📄 Envie a prova em PDF", type=["pdf"])
-
-# Escolha da neurodivergência
 tipo = st.selectbox("🧠 Neurodivergência do aluno:", ["TDAH", "TEA", "Ansiedade"])
 
 if uploaded_file and tipo:
     if st.button("🔄 Gerar Prova Adaptada"):
         with st.spinner("Processando..."):
 
-            # Lê o PDF com PyMuPDF
+            # Lê o PDF
             doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
             texto = ""
             for page in doc:
                 texto += page.get_text()
 
-            # Divide o texto por "QUESTÃO" usando regex
+            # Divide por "QUESTÃO X"
             blocos = re.split(r'\bQUESTÃO\s+\d+', texto)
             blocos = [b.strip() for b in blocos if b.strip()]
-
-            # Remove o cabeçalho se ele aparecer antes da primeira questão real
             if len(blocos) > 10:
-                blocos = blocos[1:]  # Remove o bloco inicial com cabeçalho
+                blocos = blocos[1:]  # Remove cabeçalho se estiver no primeiro bloco
+            blocos = blocos[:10]
 
-            blocos = blocos[:10]  # Pega até 10 questões
-
-            # Cria o documento Word
             docx_file = docx.Document()
             docx_file.add_heading("Prova Adaptada", 0)
 
-            # Fonte base
+            # Fonte padrão 14 pt
             style = docx_file.styles["Normal"]
             style.font.size = Pt(14)
 
-            for i, bloco in enumerate(blocos):
-                # Adiciona número da questão
-                par = docx_file.add_paragraph()
-                run = par.add_run(f"QUESTÃO {i+1}\n")
-                run.bold = True
-                par.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+            # DICAS iniciais no topo da prova
+            docx_file.add_paragraph("💡 DICAS PARA O ALUNO:", style="List Bullet")
+            for dica in dicas_por_tipo[tipo]:
+                p = docx_file.add_paragraph(dica, style="List Bullet")
+                p.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+                p.paragraph_format.line_spacing = 1.5
+            docx_file.add_paragraph("")
 
-                # Texto da questão
-                questao_par = docx_file.add_paragraph(bloco.strip())
-                questao_par.alignment = WD_PARAGRAPH_ALIGNMENT.JUSTIFY
-                for run in questao_par.runs:
+            # Adiciona as questões
+            for i, bloco in enumerate(blocos):
+                # Título da questão
+                titulo = docx_file.add_paragraph()
+                run = titulo.add_run(f"QUESTÃO {i+1}")
+                run.bold = True
+                titulo.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+
+                # Enunciado
+                enunciado = docx_file.add_paragraph(bloco)
+                enunciado.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+                for run in enunciado.runs:
                     run.font.size = Pt(14)
 
-                # Espaço entre questão e dicas
+                # Espaço duplo após o enunciado
+                docx_file.add_paragraph("")
                 docx_file.add_paragraph("")
 
-                # Dicas
+                # Dicas da questão
                 docx_file.add_paragraph("💡 Dicas para essa questão:", style="List Bullet")
                 for dica in dicas_por_tipo[tipo]:
-                    p = docx_file.add_paragraph(dica, style="List Bullet")
-                    p.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+                    dica_par = docx_file.add_paragraph(dica, style="List Bullet")
+                    dica_par.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+                    dica_par.paragraph_format.line_spacing = 1.5
 
-                # Espaço antes da próxima questão
+                # Espaço final
                 docx_file.add_paragraph("")
 
-            # Salvar em memória
+            # Salva o documento em memória
             buffer = BytesIO()
             docx_file.save(buffer)
             buffer.seek(0)
 
-            st.success("Prova adaptada gerada com sucesso!")
+            st.success("✅ Prova adaptada gerada com sucesso!")
             st.download_button(
                 label="📥 Baixar Prova Adaptada (.docx)",
                 data=buffer,
                 file_name="prova_adaptada.docx",
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )
+
             )
 
