@@ -105,6 +105,3 @@ if uploaded_file and tipo:
                 file_name="prova_adaptada.docx",
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             )
-
-            )
-
