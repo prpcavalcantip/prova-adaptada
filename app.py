@@ -42,6 +42,9 @@ if uploaded_file and tipo:
             for page in doc:
                 texto += page.get_text()
 
+            # Corrige quebras de linha no meio de frases
+            texto = re.sub(r'(?<!\n)\n(?!\n)', ' ', texto)
+
             blocos = re.split(r'\bQUESTÃO\s+\d+', texto)
             blocos = [b.strip() for b in blocos if b.strip()]
             if len(blocos) > 10:
@@ -84,10 +87,10 @@ if uploaded_file and tipo:
                 enunciado.paragraph_format.line_spacing = 1.5
                 enunciado.paragraph_format.space_after = Pt(24)
 
-                # Quebra real entre enunciado e alternativas
+                # Quebra visual real
                 docx_file.add_paragraph("")
 
-                # Alternativas como parágrafos separados
+                # Alternativas
                 if alternativas:
                     for alt in alternativas:
                         alt_par = docx_file.add_paragraph(alt.strip())
