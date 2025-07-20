@@ -64,30 +64,45 @@ if uploaded_file and tipo:
             docx_file.add_paragraph("")
 
             for i, bloco in enumerate(blocos):
+                docx_file.add_paragraph("")  # espaço antes da questão
+
+                # Título da questão
                 titulo = docx_file.add_paragraph()
                 run = titulo.add_run(f"QUESTÃO {i+1}")
                 run.bold = True
                 titulo.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
                 titulo.paragraph_format.space_after = Pt(12)
 
-                enunciado = docx_file.add_paragraph(bloco)
-                enunciado.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
-                enunciado.paragraph_format.line_spacing = 1.5
-                enunciado.paragraph_format.space_after = Pt(12)
-                for run in enunciado.runs:
-                    run.font.size = Pt(14)
+                # Separar enunciado e alternativas
+                alternativas = re.findall(r"[A-Ea-e][\)\.] .*", bloco)
+                partes = re.split(r"[A-Ea-e][\)\.] .*", bloco)
+                enunciado_texto = partes[0].strip() if partes else bloco.strip()
 
-                # Espaço duplo visual (adicional entre enunciado e alternativas)
+                # Enunciado
+                enunciado = docx_file.add_paragraph(enunciado_texto)
+                enunciado.alignment = WD_PARAGRAPH_ALIGNMENT.JUSTIFY
+                enunciado.paragraph_format.line_spacing = 1.5
+                enunciado.paragraph_format.space_after = Pt(24)
+
+                # Quebra real entre enunciado e alternativas
                 docx_file.add_paragraph("")
 
+                # Alternativas como parágrafos separados
+                if alternativas:
+                    for alt in alternativas:
+                        alt_par = docx_file.add_paragraph(alt.strip())
+                        alt_par.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+                        alt_par.paragraph_format.line_spacing = 1.5
+                        alt_par.paragraph_format.space_after = Pt(10)
+
+                # Dicas finais da questão
+                docx_file.add_paragraph("")
                 docx_file.add_paragraph("💡 Dicas para essa questão:", style="List Bullet")
                 for dica in dicas_por_tipo[tipo]:
                     dica_par = docx_file.add_paragraph(dica, style="List Bullet")
                     dica_par.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
                     dica_par.paragraph_format.line_spacing = 1.5
                     dica_par.paragraph_format.space_after = Pt(12)
-
-                docx_file.add_paragraph("")
 
             buffer = BytesIO()
             docx_file.save(buffer)
@@ -100,5 +115,3 @@ if uploaded_file and tipo:
                 file_name="prova_adaptada.docx",
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             )
-
-            
