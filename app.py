@@ -6,7 +6,6 @@ from io import BytesIO
 from docx.shared import Pt
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 
-
 st.set_page_config(page_title="AdaptaProva", layout="centered")
 
 st.title("🧠 AdaptaProva - Provas Adaptadas para Alunos com Neurodivergência")
@@ -35,15 +34,38 @@ uploaded_file = st.file_uploader("📄 Envie a prova em PDF", type=["pdf"])
 tipo = st.selectbox("🧠 Neurodivergência do aluno:", ["TDAH", "TEA", "Ansiedade"])
 
 def limpar_quebras(texto):
-    # Remove quebras de linha suaves sem perder estrutura
-    texto = re.sub(r'(?<!\n)\n(?!\n)', ' ', texto)  # quebra única vira espaço
-    texto = re.sub(r'(\w)-\s+(\w)', r'\1\2', texto)  # palavras quebradas com hífen
-    texto = re.sub(r'\n{2,}', '\n\n', texto)  # múltiplas quebras viram parágrafo
+    texto = re.sub(r'(?<!\n)\n(?!\n)', ' ', texto)  # quebra de linha leve → espaço
+    texto = re.sub(r'(\w)-\s+(\w)', r'\1\2', texto)  # junta palavras quebradas com hífen
+    texto = re.sub(r'\n{2,}', '\n\n', texto)  # múltiplas quebras → parágrafo
     return texto
 
 if uploaded_file and tipo:
-    st.write("✅ Arquivo carregado com sucesso. Tipo selecionado:", tipo)  # Debug
+    st.write("✅ Arquivo carregado com sucesso. Tipo selecionado:", tipo)
     if st.button("🔄 Gerar Prova Adaptada"):
         with st.spinner("Processando..."):
 
-            doc = fitz.open(stream=uploaded_f_
+            doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
+            texto = ""
+            for page in doc:
+                texto += page.get_text()
+
+            texto = limpar_quebras(texto)
+
+            # Separar questões por "QUESTÃO"
+            blocos = re.split(r'\bQUESTÃO\s+\d+', texto)
+            blocos = [b.strip() for b in blocos if b.strip()]
+            if len(blocos) > 10:
+                blocos = blocos[1:]
+            blocos = blocos[:10]
+
+            docx_file = docx.Document()
+            docx_file.add_heading("Prova Adaptada", 0)
+
+            style = docx_file.styles["Normal"]
+            style.font.size = Pt(14)
+
+            # Dicas iniciais
+            docx_file.add_paragraph("💡 DICAS PARA O ALUNO:", style="List Bullet")
+            for dica in dicas_por_tipo[tipo]:
+                p = docx_file.add_paragraph(dica, style="List Bullet")
+                p
