@@ -42,7 +42,7 @@ if uploaded_file and tipo:
             for page in doc:
                 texto += page.get_text()
 
-            # Corrige quebras de linha no meio de frases
+            # Corrigir quebras de linha no meio de frases
             texto = re.sub(r'(?<!\n)\n(?!\n)', ' ', texto)
 
             blocos = re.split(r'\bQUESTÃO\s+\d+', texto)
@@ -76,24 +76,29 @@ if uploaded_file and tipo:
                 titulo.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
                 titulo.paragraph_format.space_after = Pt(12)
 
-                # Separar enunciado e alternativas
-                alternativas = re.findall(r"[A-Ea-e][\)\.] .*", bloco)
-                partes = re.split(r"[A-Ea-e][\)\.] .*", bloco)
-                enunciado_texto = partes[0].strip() if partes else bloco.strip()
+                # Extrair alternativas
+                alternativas_matches = list(re.finditer(r"[A-Ea-e][\)\.].*?(?=( [A-Ea-e][\)\.]|$))", bloco, re.DOTALL))
+                if alternativas_matches:
+                    primeira_alternativa_pos = alternativas_matches[0].start()
+                    enunciado_texto = bloco[:primeira_alternativa_pos].strip()
+                    alternativas_texto = bloco[primeira_alternativa_pos:].strip()
+                else:
+                    enunciado_texto = bloco.strip()
+                    alternativas_texto = ""
 
                 # Enunciado
                 enunciado = docx_file.add_paragraph(enunciado_texto)
                 enunciado.alignment = WD_PARAGRAPH_ALIGNMENT.JUSTIFY
                 enunciado.paragraph_format.line_spacing = 1.5
                 enunciado.paragraph_format.space_after = Pt(24)
-
-                # Quebra visual real
                 docx_file.add_paragraph("")
 
-                # Alternativas
-                if alternativas:
-                    for alt in alternativas:
-                        alt_par = docx_file.add_paragraph(alt.strip())
+                # Separar e formatar cada alternativa
+                alternativas = re.split(r"(?=[A-Ea-e][\)\.])", alternativas_texto)
+                for alt in alternativas:
+                    alt = alt.strip()
+                    if alt:
+                        alt_par = docx_file.add_paragraph(alt)
                         alt_par.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
                         alt_par.paragraph_format.line_spacing = 1.5
                         alt_par.paragraph_format.space_after = Pt(10)
@@ -114,6 +119,11 @@ if uploaded_file and tipo:
             st.success("✅ Prova adaptada gerada com sucesso!")
             st.download_button(
                 label="📥 Baixar Prova Adaptada (.docx)",
+                data=buffer,
+                file_name="prova_adaptada.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )
+a Adaptada (.docx)",
                 data=buffer,
                 file_name="prova_adaptada.docx",
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
