@@ -34,6 +34,7 @@ uploaded_file = st.file_uploader("📄 Envie a prova em PDF", type=["pdf"])
 tipo = st.selectbox("🧠 Neurodivergência do aluno:", ["TDAH", "TEA", "Ansiedade"])
 
 if uploaded_file and tipo:
+    st.write("✅ Arquivo carregado com sucesso. Tipo selecionado:", tipo)  # Debug
     if st.button("🔄 Gerar Prova Adaptada"):
         with st.spinner("Processando..."):
 
@@ -42,9 +43,10 @@ if uploaded_file and tipo:
             for page in doc:
                 texto += page.get_text()
 
-            # Corrigir quebras de linha no meio de frases
+            # Corrigir quebras de linha suaves
             texto = re.sub(r'(?<!\n)\n(?!\n)', ' ', texto)
 
+            # Separar questões
             blocos = re.split(r'\bQUESTÃO\s+\d+', texto)
             blocos = [b.strip() for b in blocos if b.strip()]
             if len(blocos) > 10:
@@ -67,7 +69,7 @@ if uploaded_file and tipo:
             docx_file.add_paragraph("")
 
             for i, bloco in enumerate(blocos):
-                docx_file.add_paragraph("")  # espaço antes da questão
+                docx_file.add_paragraph("")  # Espaço antes da questão
 
                 # Título da questão
                 titulo = docx_file.add_paragraph()
@@ -76,7 +78,7 @@ if uploaded_file and tipo:
                 titulo.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
                 titulo.paragraph_format.space_after = Pt(12)
 
-                # Extrair alternativas
+                # Separar enunciado e alternativas
                 alternativas_matches = list(re.finditer(r"[A-Ea-e][\)\.].*?(?=( [A-Ea-e][\)\.]|$))", bloco, re.DOTALL))
                 if alternativas_matches:
                     primeira_alternativa_pos = alternativas_matches[0].start()
@@ -90,3 +92,36 @@ if uploaded_file and tipo:
                 enunciado = docx_file.add_paragraph(enunciado_texto)
                 enunciado.alignment = WD_PARAGRAPH_ALIGNMENT.JUSTIFY
                 enunciado.paragraph_format.line_spacing = 1.5
+                enunciado.paragraph_format.space_after = Pt(24)
+                docx_file.add_paragraph("")
+
+                # Alternativas (cada uma separada por A), B), etc.)
+                alternativas = re.split(r"(?=[A-Ea-e][\)\.])", alternativas_texto)
+                for alt in alternativas:
+                    alt = alt.strip()
+                    if alt:
+                        alt_par = docx_file.add_paragraph(alt)
+                        alt_par.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+                        alt_par.paragraph_format.line_spacing = 1.5
+                        alt_par.paragraph_format.space_after = Pt(10)
+
+                # Dicas finais
+                docx_file.add_paragraph("")
+                docx_file.add_paragraph("💡 Dicas para essa questão:", style="List Bullet")
+                for dica in dicas_por_tipo[tipo]:
+                    dica_par = docx_file.add_paragraph(dica, style="List Bullet")
+                    dica_par.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+                    dica_par.paragraph_format.line_spacing = 1.5
+                    dica_par.paragraph_format.space_after = Pt(12)
+
+            buffer = BytesIO()
+            docx_file.save(buffer)
+            buffer.seek(0)
+
+            st.success("✅ Prova adaptada gerada com sucesso!")
+            st.download_button(
+                label="📥 Baixar Prova Adaptada (.docx)",
+                data=buffer,
+                file_name="prova_adaptada.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )
