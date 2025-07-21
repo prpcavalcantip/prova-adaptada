@@ -40,7 +40,6 @@ def limpar_quebras(texto):
     return texto
 
 if uploaded_file and tipo:
-    st.write("✅ Arquivo carregado com sucesso. Tipo selecionado:", tipo)
     if st.button("🔄 Gerar Prova Adaptada"):
         with st.spinner("Processando..."):
 
@@ -59,13 +58,4 @@ if uploaded_file and tipo:
             blocos = blocos[:10]
 
             docx_file = docx.Document()
-            docx_file.add_heading("Prova Adaptada", 0)
-
-            style = docx_file.styles["Normal"]
-            style.font.size = Pt(14)
-
-            # Dicas iniciais
-            docx_file.add_paragraph("💡 DICAS PARA O ALUNO:", style="List Bullet")
-            for dica in dicas_por_tipo[tipo]:
-                p = docx_file.add_paragraph(dica, style="List Bullet")
-                p
+            docx_file.ad_
